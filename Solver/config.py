@@ -15,13 +15,13 @@ dy = Ly/Ny
 #Initialization of the Physical Constants
 
 #Adiabatic Factor
-gamma = 5/3 #monoatomic
+gamma = 5.0/3.0 #monoatomic
 
 #Resistivity
-eta = 1e-3
+ETA = 1e-3
 
 #Time control parameters
-cfl = 0.3
+CFL = 0.3
 output_interval = 50
 tmax = 1.0
 
