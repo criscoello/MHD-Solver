@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import config
 
-
+#Initialization of the Grid Space
 def init_grid(Nx = config.Nx, Ny = config.Ny, Lx = config.Lx, Ly = config.Ly):
     """
     Initializes the space grid
@@ -30,4 +30,82 @@ def init_grid(Nx = config.Nx, Ny = config.Ny, Lx = config.Lx, Ly = config.Ly):
     dx = Lx/Nx
     dy = Ly/Ny
     
-    return x,y,X,Y
+    return x, y, dx, dy, X, Y
+
+#Derivative Operators
+def ddx(f, dx):
+    """
+    Central difference derivative in x with periodic boundaries
+    using finite differences.
+    
+    """
+    return (np.roll(f, -1, axis=0) - np.roll(f, 1, axis=0)) / (2 * dx)
+
+def ddy(f, dy):
+    """
+    Central difference derivative in y with periodic boundaries
+    using finite differences
+    
+    """
+    return (np.roll(f, -1, axis=1) - np.roll(f, 1, axis=1)) / (2 * dy)
+
+
+def laplacian(f, dx, dy):
+    """
+    2D Laplacian with periodic boundaries
+    
+    """
+    return (
+        (np.roll(f, -1, axis=0) - 2 * f + np.roll(f, 1, axis=0)) / dx**2
+      + (np.roll(f, -1, axis=1) - 2 * f + np.roll(f, 1, axis=1)) / dy**2
+    )
+
+#Change from primitive variables to conserved variables in vector U
+def primitives_to_conserved(rho, vx, vy, Bx, By, p):
+    """Creating a meshgrid for U, so it takes value for each cell i, and returns
+    some specific physical qunatity at that specific point (eg. pressure p, density rho)
+    
+
+    Args:
+        rho (_type_): density
+        vx (_type_): x-velocity
+        vy (_type_): y-velocity
+        Bx (_type_): x-Magnetic Field
+        By (_type_): y-Magnetic Field
+        p (_type_): pressure
+
+    Returns:
+        U: The vector variable that contains the "conserved" quantities
+    """
+    
+    U = np.zeros((rho.shape[0], rho.shape[1], 6))
+    U[...,0] = rho
+    U[...,1] = rho*vx
+    U[...,2] = rho*vy
+    U[...,3] = Bx
+    U[...,4] = By
+    E = (p/(config.gamma-1)) + 0.5*rho*(vx**2 + vy**2) + 0.5*(Bx**2 + By**2)
+    U[...,5] = E
+    
+   
+    return U
+    
+#Change from conserved to primitive variables using U vector
+def conserved_to_primitives(U):
+    rho = np.maximum(U[...,0],config.min_density)
+    vx = U[...,1]/rho
+    vy = U[...,2]/rho
+    Bx = U[...,3]
+    By = U[...,4]
+    KE = 0.5*rho*(vx**2 + vy**2)
+    ME = 0.5*(Bx**2 + By**2)
+    p = (config.gamma - 1) * (U[...,5] - KE - ME)
+    p = np.maximum(p, config.min_pressure)
+    
+    mask = (U[...,5] < (KE + ME))
+    p[mask] = config.min_pressure
+
+    return (rho, vx, vy, Bx, By, p)
+
+
+
