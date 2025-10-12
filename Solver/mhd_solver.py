@@ -49,10 +49,12 @@ def ddy(f, dy):
     """
     return (np.roll(f, -1, axis=1) - np.roll(f, 1, axis=1)) / (2 * dy)
 
+#The np.roll helps me to introduce the periodic boundary conditions, 
+#without explicitly establishing a function for them. Therefore, it is more efficient.
 
 def laplacian(f, dx, dy):
     """
-    2D Laplacian with periodic boundaries
+    2D Laplacian with periodic boundaries using finite differences
     
     """
     return (
@@ -92,6 +94,15 @@ def primitives_to_conserved(rho, vx, vy, Bx, By, p):
     
 #Change from conserved to primitive variables using U vector
 def conserved_to_primitives(U):
+    """Converts conserved variables U to primitive variables.
+    
+    Args:
+        U (..., 6): array of conserved variables [rho, rho*vx, rho*vy, Bx, By, E]\
+            
+    Returns:
+        rho, vx, vy, Bx, By, p : arrays of primitive variables
+    """
+    #convert the U vector components into the physical variables
     rho = np.maximum(U[...,0],config.min_density)
     vx = U[...,1]/rho
     vy = U[...,2]/rho
@@ -102,10 +113,45 @@ def conserved_to_primitives(U):
     p = (config.gamma - 1) * (U[...,5] - KE - ME)
     p = np.maximum(p, config.min_pressure)
     
-    mask = (U[...,5] < (KE + ME))
-    p[mask] = config.min_pressure
+    #If pressure is negative then take the preconfigured min pressure.
+    condition = (U[...,5] < (KE + ME))
+    p[condition] = config.min_pressure
 
-    return (rho, vx, vy, Bx, By, p)
+    return rho, vx, vy, Bx, By, p
+
+def Flux_x(U):
+    rho, vx, vy, bx, by, p = conserved_to_primitives(U)
+    
+    #Create a similar meshgrid like U vector
+    F = np.zeros_like(U)
+    
+    #Initialize the components of F(U)
+    F[...,0] = rho * vx
+    F[...,1] = rho*vx*vx + p + 0.5*(bx**2 + by**2) - bx*bx
+    F[...,2] = rho*vx*vy - bx*by
+    F[...,3] = 0.0
+    F[...,4] = vx*by - vy*bx
+    F[...,5] = (U[...,5] + p + 0.5*(bx**2 + by**2)) * vx - (bx * (vx*bx + vy*by))
+    
+    return F
+
+def Flux_y(U):
+    rho, vx, vy, bx, by, p = conserved_to_primitives(U)
+    
+    #Create a similar meshgrid like U vector
+    G = np.zeros_like(U)
+    
+    #Initialize the components of G(U)
+    G[...,0] = rho * vy
+    G[...,1] = rho*vy*vx - by*bx
+    G[...,2] = rho*vy*vy + p + 0.5*(bx**2 + by**2) - by*by
+    G[...,3] = vy*bx - vx*by
+    G[...,4] = 0.0
+    G[...,5] = (U[...,5] + p + 0.5*(bx**2 + by**2)) * vy - (by * (vx*bx + vy*by))
+   
+    return G
+
+
 
 
 
