@@ -249,9 +249,30 @@ def full_RHS(U):
     
     return RHS_x + RHS_y
  
+#Time Evolution
+def RK4(U):
+    ULx, URx = Rusanov_Interface_x(U)
+    ULy, URy = Rusanov_Interface_y(U)
     
+    alpha_x = np.max(max_signal_speed(ULx, URx, direction='x'))
+    alpha_y = np.max(max_signal_speed(ULy, URy, direction='y'))
+    alpha_max = max(alpha_x, alpha_y)
     
+    if alpha_max < 1e-8:
+    alpha_max = 1e-8
     
+    dt = config.cfl * min(config.dx, config.dy) / alpha_max
+
+    k1 = full_RHS(U)
+    k2 = full_RHS(U + 0.5 * dt * k1)
+    k3 = full_RHS(U + 0.5 * dt * k2)
+    k4 = full_RHS(U + dt * k3)
+
+    U_new = U + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
+    
+    return U_new, dt
+    
+
     
     
     
