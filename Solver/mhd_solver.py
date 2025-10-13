@@ -94,6 +94,7 @@ def primitives_to_conserved(rho, vx, vy, Bx, By, p):
    
     return U
     
+#The opposite
 #Change from conserved to primitive variables using U vector
 def conserved_to_primitives(U):
     """Converts conserved variables U to primitive variables.
@@ -171,6 +172,8 @@ def Flux_y(U):
    
     return G
 
+#The flow in/out occurs at the interface between cells
+#Calculating F at i-1/2 (The interfaces between cells i-1,j and i,j)
 def Rusanov_Interface_x(U):
     
     # Build left/right states for x-interfaces: shapes (nx+1, ny, 6)
@@ -189,6 +192,7 @@ def Rusanov_Interface_x(U):
 
     return ULx, URx
 
+#Calculating G at j-1/2 (The interfaces between cells i,j-1 and i,j)
 def Rusanov_Interface_y(U):
     
     # Build left/right states for y-interfaces: shapes (nx+1, ny, 6)
@@ -207,7 +211,7 @@ def Rusanov_Interface_y(U):
     
     return ULy, URy
 
-
+# The maximum speed at wich the "signal" can travel
 def max_signal_speed(UL, UR, direction='x'):
     rho_L, vx_L, vy_L, bx_L, by_L, p_L = conserved_to_primitives(UL)
     rho_R, vx_R, vy_R, bx_R, by_R, p_R = conserved_to_primitives(UR)
@@ -231,6 +235,9 @@ def max_signal_speed(UL, UR, direction='x'):
     alpha_interface = np.maximum(alpha_L, alpha_R)
     return alpha_interface
     
+# Total Flux at the interfaces, using Rusanov method
+
+# Total flux in the x-dir, Left(L) and Right(R)
 def Rusanov_flux_x(U):
     
     ULx, URx = Rusanov_Interface_x(U)
@@ -247,23 +254,27 @@ def Rusanov_flux_x(U):
     
     return Fx, RHS_x
 
+# Total flux in the y-dir
+# In y-dir we still use R,L notation, but in reality is Up and Down
 def Rusanov_flux_y(U):
     
     ULy, URy = Rusanov_Interface_y(U)
     
-    F_L = Flux_y(ULy)
-    F_R = Flux_y(URy)
+    G_L = Flux_y(ULy)
+    G_R = Flux_y(URy)
     
     alpha_interface = max_signal_speed(ULy, URy, direction='y')
     alpha_broadcast = alpha_interface[..., None]
     
-    Fy = 0.5*(F_L + F_R) - 0.5*alpha_broadcast*(URy - ULy)
+    Fy = 0.5*(G_L + G_R) - 0.5*alpha_broadcast*(URy - ULy)
     
     RHS_y = - (Fy[:,1:,:] - Fy[:,:-1,:]) / config.dy
     
     return Fy, RHS_y
 
+# The net flux is just the sum of the flux over the x-dir and y-dir
 def full_RHS(U):
+    # main part
     Fx, RHS_x = Rusanov_flux_x(U)
     Fy, RHS_y = Rusanov_flux_y(U)
     
