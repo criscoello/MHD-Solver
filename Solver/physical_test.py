@@ -2,7 +2,7 @@ import numpy as np
 from mhd_solver import ddx, ddy, conserved_to_primitives
 import config
 
-def Jz(U):
+def Jz_component(U):
     
     Bx = U[..., 3]
     By = U[..., 4]
@@ -38,7 +38,28 @@ def Total_Energy(U):
     E_internal = np.sum(Internal)*cell_area
     
     return E_total, E_kinetic, E_magnetic, E_internal
+
+def Electric_Field(U):
     
+    rho  = U[..., 0]
+    mx   = U[..., 1]
+    my   = U[..., 2]
+    Bx   = U[..., 3]
+    By   = U[..., 4]
+
+    vx = mx / rho
+    vy = my / rho
+    Jz = Jz_component(U)
+
+    Ez = config.ETA * Jz - (vx * By - vy * Bx)
+
+    # Choose the center
+    ix = config.Nx // 2
+    iy = config.Ny // 2
+    return Ez[ix, iy]
+
+
+
 
         
     

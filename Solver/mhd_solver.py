@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import config
 
-#Initialization of the Grid Space
+#Initialization of the Grid Space(Discretization)
 def init_grid(Nx = config.Nx, Ny = config.Ny, Lx = config.Lx, Ly = config.Ly):
     """
     Initializes the space grid
@@ -16,7 +16,7 @@ def init_grid(Nx = config.Nx, Ny = config.Ny, Lx = config.Lx, Ly = config.Ly):
     Returns:
         x,y: 1D arrays(self-centered coordinates)
         X,Y: 2D meshgrid array(size Nx,Ny)
-        dx,dy: cell dimensions
+        dx,dy: cell dimensions - The horizontal and vertical length
     """
     
     #1D arrays for x and y
@@ -33,6 +33,7 @@ def init_grid(Nx = config.Nx, Ny = config.Ny, Lx = config.Lx, Ly = config.Ly):
     return x, y, dx, dy, X, Y
 
 #Derivative Operators
+#This two helps us find the Jz and Div B
 def ddx(f, dx):
     """
     Central difference derivative in x with periodic boundaries
@@ -49,8 +50,9 @@ def ddy(f, dy):
     """
     return (np.roll(f, -1, axis=1) - np.roll(f, 1, axis=1)) / (2 * dy)
 
-#The np.roll helps me to introduce the periodic boundary conditions, 
+#The np.roll method helps me to introduce the periodic boundary conditions, 
 #without explicitly establishing a function for them. Therefore, it is more efficient.
+#It rolls back and forth the values inside the arrays
 
 def laplacian(f, dx, dy):
     """
@@ -69,12 +71,12 @@ def primitives_to_conserved(rho, vx, vy, Bx, By, p):
     
 
     Args:
-        rho (_type_): density
-        vx (_type_): x-velocity
-        vy (_type_): y-velocity
-        Bx (_type_): x-Magnetic Field
-        By (_type_): y-Magnetic Field
-        p (_type_): pressure
+        rho : density
+        vx : x-velocity
+        vy : y-velocity
+        Bx : x-Magnetic Field
+        By : y-Magnetic Field
+        p  : pressure
 
     Returns:
         U: The vector variable that contains the "conserved" quantities
@@ -97,10 +99,10 @@ def conserved_to_primitives(U):
     """Converts conserved variables U to primitive variables.
     
     Args:
-        U (..., 6): array of conserved variables [rho, rho*vx, rho*vy, Bx, By, E]\
+        U (..., 6): array of conserved variables [rho, rho*vx, rho*vy, Bx, By, E]
             
     Returns:
-        rho, vx, vy, Bx, By, p : arrays of primitive variables
+        rho, vx, vy, Bx, By, p : array of primitive variables
     """
     #convert the U vector components into the physical variables
     rho = np.maximum(U[...,0],config.min_density)
@@ -120,6 +122,15 @@ def conserved_to_primitives(U):
     return rho, vx, vy, Bx, By, p
 
 def Flux_x(U):
+    """This F vector shows you how the "conserved" quantities flow. Fx(U).
+    The flux of U in the x direction
+
+    Args:
+        U : vector of conserved quantities
+
+    Returns:
+        F: The F vector(x-Flux of U)
+    """
     rho, vx, vy, bx, by, p = conserved_to_primitives(U)
     
     #Create a similar meshgrid like U vector
@@ -136,6 +147,15 @@ def Flux_x(U):
     return F
 
 def Flux_y(U):
+    """This G vector shows you how the "conserved" quantities flow. Gy(U).
+    The flux of U in the y direction
+
+    Args:
+        U : vector of conserved quantities
+
+    Returns:
+        G: The G vector(y-Flux of U)
+    """
     rho, vx, vy, bx, by, p = conserved_to_primitives(U)
     
     #Create a similar meshgrid like U vector
@@ -154,8 +174,8 @@ def Flux_y(U):
 def Rusanov_Interface_x(U):
     
     # Build left/right states for x-interfaces: shapes (nx+1, ny, 6)
-    ULx = np.zeros((nx+1, ny, 6))
-    URx = np.zeros((nx+1, ny, 6))
+    ULx = np.zeros((config.Nx+1, config.Ny, 6))
+    URx = np.zeros((config.Nx+1, config.Ny, 6))
     
     # interior interfaces: left cell i-1, right cell i
     ULx[1:-1, :, :] = U[0:-1, :, :]
@@ -164,7 +184,7 @@ def Rusanov_Interface_x(U):
     #Periodic Boundary conditions
     ULx[0, :, :] = U[-1, :, :]
     URx[0, :, :] = U[0, :, :]
-    ULx[-1, :, :] = U[0, :, :]
+    ULx[-1, :, :] = U[-1, :, :]
     URx[-1, :, :] = U[0, :, :]
 
     return ULx, URx
@@ -172,8 +192,8 @@ def Rusanov_Interface_x(U):
 def Rusanov_Interface_y(U):
     
     # Build left/right states for y-interfaces: shapes (nx+1, ny, 6)
-    ULy = np.zeros((nx, ny+1, 6))
-    URy = np.zeros((nx, ny+1, 6))
+    ULy = np.zeros((config.Nx, config.Ny+1, 6))
+    URy = np.zeros((config.Nx, config.Ny+1, 6))
     
     # interior interfaces: left cell j-1, right cell j
     ULy[:, 1:-1, :] = U[:, :-1, :]
@@ -218,7 +238,7 @@ def Rusanov_flux_x(U):
     F_L = Flux_x(ULx)
     F_R = Flux_x(URx)
     
-    alpha_interface = max_signal_speed(ULx, URx)
+    alpha_interface = max_signal_speed(ULx, URx, direction='x')
     alpha_broadcast = alpha_interface[..., None]
     
     Fx = 0.5*(F_L + F_R) - 0.5*alpha_broadcast*(URx - ULx)
@@ -247,9 +267,29 @@ def full_RHS(U):
     Fx, RHS_x = Rusanov_flux_x(U)
     Fy, RHS_y = Rusanov_flux_y(U)
     
-    return RHS_x + RHS_y
+    RHS_total = RHS_x + RHS_y
+
+    # Include Resistive diffusion
+    eta = config.ETA
+    Bx = U[...,3]
+    By = U[...,4]
+
+    lap_Bx = laplacian(Bx, config.dx, config.dy)
+    lap_By = laplacian(By, config.dx, config.dy)
+
+    RHS_total[...,3] += eta * lap_Bx
+    RHS_total[...,4] += eta * lap_By
+    
+    # For 2D (x,y) with B=(Bx,By), Jz = d_x B_y - d_y B_x
+    Jz = ddx(By, config.dx) - ddy(Bx, config.dy)
+
+    # Add resistive(Ohmic) heating to energy equation
+    RHS_total[...,5] += config.ETA * (Jz**2)    
+
+    return RHS_total
  
-#Time Evolution
+#Time Evolution of U
+#Runge-Kutta algorithm
 def RK4(U):
     ULx, URx = Rusanov_Interface_x(U)
     ULy, URy = Rusanov_Interface_y(U)
@@ -259,9 +299,16 @@ def RK4(U):
     alpha_max = max(alpha_x, alpha_y)
     
     if alpha_max < 1e-8:
-    alpha_max = 1e-8
+        alpha_max = 1e-8
     
-    dt = config.cfl * min(config.dx, config.dy) / alpha_max
+    dt_hyperbolic = config.CFL * min(config.dx, config.dy) / alpha_max
+    
+    if config.ETA > 0.0:
+        dt_diffusive = 0.5 * (min(config.dx, config.dy)**2) / config.ETA
+    else:
+        dt_diffusive = np.inf
+        
+    dt = min(dt_hyperbolic, dt_diffusive)
 
     k1 = full_RHS(U)
     k2 = full_RHS(U + 0.5 * dt * k1)

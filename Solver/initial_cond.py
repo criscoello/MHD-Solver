@@ -1,6 +1,7 @@
 import numpy as np
 from mhd_solver import init_grid
 from mhd_solver import primitives_to_conserved
+import config
 
 
 def Harris_sheet():
@@ -19,7 +20,7 @@ def Harris_sheet():
     By = np.zeros_like(Bx)
     
     # Add small perturbation to trigger reconnection
-    pert_amp = 0.01
+    pert_amp = 0.1
     By += pert_amp * np.sin(2 * np.pi * X / config.Lx) * np.exp(-(Y - config.Ly/2)**2 / a**2)
     
     # Pressure and density
