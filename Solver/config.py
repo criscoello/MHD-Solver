@@ -18,11 +18,11 @@ dy = Ly/Ny
 gamma = 5.0/3.0 #monoatomic
 
 #Resistivity
-ETA = 0.01
+ETA = 0.0001
 
 #Time control parameters
 CFL = 0.3
-output_interval = 50
+output_interval = 70
 tmax = 1.0
 
 #For Safety(Optional)

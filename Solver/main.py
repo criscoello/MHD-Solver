@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
+from matplotlib.animation import FuncAnimation, FFMpegWriter
 from scipy.ndimage import gaussian_filter
 from mhd_solver import init_grid, RK4, conserved_to_primitives
 from initial_cond import Harris_sheet
@@ -15,34 +15,21 @@ U = Harris_sheet()
 current_time = 0.0
 output_counter = 0
 
+# Create figure
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 plt.subplots_adjust(left=0.08, right=0.95, top=0.93, bottom=0.1, wspace=0.3)
 
-# --- Initial plots ---
-Jz = Jz_component(U)
-rho, vx, vy, Bx, By, p = conserved_to_primitives(U)
+print(f"Grid: {config.Nx} x {config.Ny}")
+print(f"Domain: {config.Lx} x {config.Ly}")
+print(f"Resistivity η = {config.ETA}")
+print(f"Max time: {config.tmax}")
+print("\nStarting simulation and video generation...")
 
-# Jz contour plot (transpose for correct orientation)
-cont1 = ax1.contourf(X.T, Y.T, gaussian_filter(Jz.T, sigma=1), levels=50, cmap='seismic')
-ax1.set_title(f'Jz (current density) - t = {current_time:.4f}')
-ax1.set_xlabel('x')
-ax1.set_ylabel('y')
-cbar1 = fig.colorbar(cont1, ax=ax1)
-
-# Magnetic field streamplot (use 1D arrays x, y for streamplot)
-B_magnitude = np.sqrt(Bx**2 + By**2)
-strm = ax2.streamplot(x, y, Bx.T, By.T, color=B_magnitude.T, cmap='plasma', 
-                      linewidth=1.5, density=1.5, arrowsize=1.2)
-ax2.set_title(f'Magnetic Field - t = {current_time:.4f}')
-ax2.set_xlabel('x')
-ax2.set_ylabel('y')
-cbar2 = fig.colorbar(strm.lines, ax=ax2)
-
-# --- Animation update function ---
+# Animation update function
 def update(frame):
     global U, current_time, output_counter
     
-    # Advance solution multiple steps per frame for smoother progression
+    # Advance solution multiple steps per frame
     steps_per_frame = config.output_interval
     
     for _ in range(steps_per_frame):
@@ -81,19 +68,49 @@ def update(frame):
     
     # Print progress
     if frame % 10 == 0:
-        print(f"Frame {frame}: t = {current_time:.4f}, step = {output_counter}")
+        progress = (current_time / config.tmax) * 100
+        print(f"Frame {frame}: t = {current_time:.4f} ({progress:.1f}% complete)")
     
     return ax1, ax2
 
 # Calculate number of frames needed
 total_frames = int(config.tmax / (config.output_interval * 0.001)) + 50
 
-print(f"Starting animation with {total_frames} frames")
-print(f"Grid: {config.Nx} x {config.Ny}")
-print(f"Domain: {config.Lx} x {config.Ly}")
-print(f"Resistivity η = {config.ETA}")
+print(f"\nGenerating {total_frames} frames...")
+print("This may take several minutes depending on your system...\n")
 
+# Create animation
 ani = FuncAnimation(fig, update, frames=total_frames, interval=50, 
                     blit=False, repeat=False)
 
-plt.show()
+# Set up the video writer
+writer = FFMpegWriter(fps=18,  # frames per second
+                     metadata=dict(artist='MHD Simulation', 
+                                   title='Harris Sheet Magnetic Reconnection'),
+                     bitrate=3000)  # Higher bitrate = better quality
+
+# Save the animation as MP4
+output_filename = "magnetic_reconnection.mp4"
+#Change the name if you do not want to replace the last file
+print(f"Saving video to: {output_filename}")
+print("Please wait, this will take a few minutes...\n")
+
+
+#Handling Exceptions
+try:
+    ani.save(output_filename, writer=writer, dpi=90)
+    print(f"\n✓ Video saved successfully as '{output_filename}'!")
+    print(f"  Total frames: {total_frames}")
+    print(f"  Simulation time: {current_time:.4f}")
+    print(f"  Video duration: {total_frames/20:.1f} seconds")
+except Exception as e:
+    print(f"\n✗ Error saving video: {e}")
+    print("\nNote: This requires FFmpeg to be installed on your system.")
+    print("To install FFmpeg:")
+    print("  - Windows: Download from https://ffmpeg.org/ or use 'choco install ffmpeg'")
+    print("  - Linux: sudo apt-get install ffmpeg")
+    print("  - Mac: brew install ffmpeg")
+    print("\nAlternatively, try displaying the animation with plt.show() instead.")
+
+plt.close()
+print("\nDone!")

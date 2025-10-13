@@ -9,7 +9,7 @@ def Harris_sheet():
     x, y, dx, dy, X, Y = init_grid()
     
     #Initialize parameters
-    B0 = 1.0
+    B0 = 2.0
     a = 0.5
     p0 = 0.1
     rho0 = 1.0
@@ -20,7 +20,7 @@ def Harris_sheet():
     By = np.zeros_like(Bx)
     
     # Add small perturbation to trigger reconnection
-    pert_amp = 0.1
+    pert_amp = 0.01
     By += pert_amp * np.sin(2 * np.pi * X / config.Lx) * np.exp(-(Y - config.Ly/2)**2 / a**2)
     
     # Pressure and density
