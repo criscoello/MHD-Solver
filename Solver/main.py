@@ -7,38 +7,41 @@ from initial_cond import Harris_sheet
 from physical_test import Jz_component
 import config
 
-# --- Initialize grid and solution ---
+# Initialize grid
 x, y, dx, dy, X, Y = init_grid()
+
+#Initial conditions
 U = Harris_sheet()
 
-# Time tracking
-current_time = 0.0
+# Time evolution counters
+t = 0.0 #current time
 output_counter = 0
 
 # Create figure
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 plt.subplots_adjust(left=0.08, right=0.95, top=0.93, bottom=0.1, wspace=0.3)
 
+# Print elementary details about our working space, and parameters
 print(f"Grid: {config.Nx} x {config.Ny}")
 print(f"Domain: {config.Lx} x {config.Ly}")
 print(f"Resistivity η = {config.ETA}")
 print(f"Max time: {config.tmax}")
 print("\nStarting simulation and video generation...")
 
-# Animation update function
+# Update function
 def update(frame):
-    global U, current_time, output_counter
+    global U, t, output_counter
     
     # Advance solution multiple steps per frame
     steps_per_frame = config.output_interval
     
     for _ in range(steps_per_frame):
         U, dt = RK4(U)
-        current_time += dt
+        t += dt
         output_counter += 1
         
         # Stop if we've reached max time
-        if current_time >= config.tmax:
+        if t >= config.tmax:
             break
     
     # Recompute diagnostics
@@ -50,26 +53,27 @@ def update(frame):
     ax1.clear()
     ax2.clear()
     
-    # Update Jz contour with consistent color scale
+    # Jz ContourPlot
     Jz_smooth = gaussian_filter(Jz.T, sigma=1)
     vmax = np.max(np.abs(Jz_smooth))
     cont = ax1.contourf(X.T, Y.T, Jz_smooth, levels=50, cmap='seismic', 
                         vmin=-vmax, vmax=vmax)
-    ax1.set_title(f'Jz (current density) - t = {current_time:.4f}')
+    ax1.set_title(f'Jz (current density) - t = {t:.4f}')
     ax1.set_xlabel('x')
     ax1.set_ylabel('y')
     
-    # Update magnetic field streamplot
+    # Magentic Field Streamplot
     ax2.streamplot(x, y, Bx.T, By.T, color=B_magnitude.T, cmap='plasma', 
                    linewidth=1.5, density=1.5, arrowsize=1.2)
-    ax2.set_title(f'Magnetic Field - t = {current_time:.4f}')
+    ax2.set_title(f'Magnetic Field - t = {t:.4f}')
     ax2.set_xlabel('x')
     ax2.set_ylabel('y')
     
     # Print progress
     if frame % 10 == 0:
-        progress = (current_time / config.tmax) * 100
-        print(f"Frame {frame}: t = {current_time:.4f} ({progress:.1f}% complete)")
+        progress = (t / config.tmax) * 100
+        print(f"Frame {frame}: t = {t:.4f} ({progress:.1f}% complete)")
+        print("Do not close the program")
     
     return ax1, ax2
 
@@ -101,16 +105,14 @@ try:
     ani.save(output_filename, writer=writer, dpi=90)
     print(f"\n✓ Video saved successfully as '{output_filename}'!")
     print(f"  Total frames: {total_frames}")
-    print(f"  Simulation time: {current_time:.4f}")
+    print(f"  Simulation time: {t:.4f}")
     print(f"  Video duration: {total_frames/20:.1f} seconds")
 except Exception as e:
+    # You need FFmpeg codec if you want to watch the video
     print(f"\n✗ Error saving video: {e}")
     print("\nNote: This requires FFmpeg to be installed on your system.")
-    print("To install FFmpeg:")
-    print("  - Windows: Download from https://ffmpeg.org/ or use 'choco install ffmpeg'")
-    print("  - Linux: sudo apt-get install ffmpeg")
-    print("  - Mac: brew install ffmpeg")
     print("\nAlternatively, try displaying the animation with plt.show() instead.")
 
 plt.close()
+#plt.show() if video does not work
 print("\nDone!")
