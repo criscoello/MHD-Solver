@@ -151,6 +151,70 @@ def Flux_y(U):
    
     return G
 
+def Rusanov_Interface_x(U):
+    
+    # Build left/right states for x-interfaces: shapes (nx+1, ny, 6)
+    ULx = np.zeros((nx+1, ny, 6))
+    URx = np.zeros((nx+1, ny, 6))
+    
+    # interior interfaces: left cell i-1, right cell i
+    ULx[1:-1, :, :] = U[0:-1, :, :]
+    URx[1:-1, :, :] = U[1:, :, :]
+    
+    #Periodic Boundary conditions
+    ULx[0, :, :] = U[-1, :, :]
+    URx[0, :, :] = U[0, :, :]
+    ULx[-1, :, :] = U[0, :, :]
+    URx[-1, :, :] = U[0, :, :]
+
+    return ULx, URx
+
+def Rusanov_Interface_y(U):
+    
+    # Build left/right states for y-interfaces: shapes (nx+1, ny, 6)
+    ULy = np.zeros((nx, ny+1, 6))
+    URy = np.zeros((nx, ny+1, 6))
+    
+    # interior interfaces: left cell j-1, right cell j
+    ULy[:, 1:-1, :] = U[:, :-1, :]
+    URy[:, 1:-1, :] = U[:, 1:, :]
+    
+    #Periodic Boundary Conditions
+    ULy[:, 0, :] = U[:, -1, :]
+    URy[:, 0, :] = U[:, 0, :]
+    ULy[:, -1, :] = U[:, -1, :]
+    URy[:, -1, :] = U[:, 0, :]
+    
+    return ULy, URy
+
+
+def max_signal_speed(U):
+    
+    ULx, URx = Rusanov_Interface_x(U)
+    rho_L, vx_L, vy_L, bx_L, by_L, p_L = conserved_to_primitives(ULx)
+    rho_R, vx_R, vy_R, bx_R, by_R, p_R = conserved_to_primitives(URx)
+    
+    cs_L = np.sqrt(config.gamma * p_L / rho_L)
+    cs_R = np.sqrt(config.gamma * p_R / rho_R)
+    
+    vA_L = np.sqrt( bx_L**2 + by_L**2 ) / np.sqrt(rho_L)
+    vA_R = np.sqrt( bx_R**2 + by_R**2 ) / np.sqrt(rho_R)
+    
+    cf_L = np.sqrt(cs_L**2 + vA_L**2)
+    cf_R = np.sqrt(cs_R**2 + vA_R**2)
+    
+    alpha_L = np.abs(vx_L) + cf_L
+    alpha_R = np.abs(vx_R) + cf_R
+    
+    alpha_interface = np.maximum(alpha_L, alpha_R)
+    return alpha_interface
+    
+def Rusanov_flux_x(U, ULx, URx):
+    
+    
+    
+    
+
 
 
 
