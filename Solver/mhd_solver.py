@@ -188,28 +188,69 @@ def Rusanov_Interface_y(U):
     return ULy, URy
 
 
-def max_signal_speed(U):
-    
-    ULx, URx = Rusanov_Interface_x(U)
-    rho_L, vx_L, vy_L, bx_L, by_L, p_L = conserved_to_primitives(ULx)
-    rho_R, vx_R, vy_R, bx_R, by_R, p_R = conserved_to_primitives(URx)
-    
+def max_signal_speed(UL, UR, direction='x'):
+    rho_L, vx_L, vy_L, bx_L, by_L, p_L = conserved_to_primitives(UL)
+    rho_R, vx_R, vy_R, bx_R, by_R, p_R = conserved_to_primitives(UR)
+
     cs_L = np.sqrt(config.gamma * p_L / rho_L)
     cs_R = np.sqrt(config.gamma * p_R / rho_R)
-    
-    vA_L = np.sqrt( bx_L**2 + by_L**2 ) / np.sqrt(rho_L)
-    vA_R = np.sqrt( bx_R**2 + by_R**2 ) / np.sqrt(rho_R)
-    
+
+    vA_L = np.sqrt(bx_L**2 + by_L**2) / np.sqrt(rho_L)
+    vA_R = np.sqrt(bx_R**2 + by_R**2) / np.sqrt(rho_R)
+
     cf_L = np.sqrt(cs_L**2 + vA_L**2)
     cf_R = np.sqrt(cs_R**2 + vA_R**2)
-    
-    alpha_L = np.abs(vx_L) + cf_L
-    alpha_R = np.abs(vx_R) + cf_R
-    
+
+    if direction=='x':
+        alpha_L = np.abs(vx_L) + cf_L
+        alpha_R = np.abs(vx_R) + cf_R
+    elif direction=='y':
+        alpha_L = np.abs(vy_L) + cf_L
+        alpha_R = np.abs(vy_R) + cf_R
+
     alpha_interface = np.maximum(alpha_L, alpha_R)
     return alpha_interface
     
-def Rusanov_flux_x(U, ULx, URx):
+def Rusanov_flux_x(U):
+    
+    ULx, URx = Rusanov_Interface_x(U)
+    
+    F_L = Flux_x(ULx)
+    F_R = Flux_x(URx)
+    
+    alpha_interface = max_signal_speed(ULx, URx)
+    alpha_broadcast = alpha_interface[..., None]
+    
+    Fx = 0.5*(F_L + F_R) - 0.5*alpha_broadcast*(URx - ULx)
+    
+    RHS_x = - (Fx[1:,:,:] - Fx[:-1,:,:]) / config.dx
+    
+    return Fx, RHS_x
+
+def Rusanov_flux_y(U):
+    
+    ULy, URy = Rusanov_Interface_y(U)
+    
+    F_L = Flux_y(ULy)
+    F_R = Flux_y(URy)
+    
+    alpha_interface = max_signal_speed(ULy, URy, direction='y')
+    alpha_broadcast = alpha_interface[..., None]
+    
+    Fy = 0.5*(F_L + F_R) - 0.5*alpha_broadcast*(URy - ULy)
+    
+    RHS_y = - (Fy[:,1:,:] - Fy[:,:-1,:]) / config.dy
+    
+    return Fy, RHS_y
+
+def full_RHS(U):
+    Fx, RHS_x = Rusanov_flux_x(U)
+    Fy, RHS_y = Rusanov_flux_y(U)
+    
+    return RHS_x + RHS_y
+ 
+    
+    
     
     
     
