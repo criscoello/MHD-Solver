@@ -54,17 +54,6 @@ To implement your own initial conditions, create a new function in `initial_cond
 
 Then update `main.py` to use your function instead of `Harris_sheet()`.
 
-## Physics of the Harris Sheet
-
-The Harris sheet is an equilibrium configuration with:
-
-- **Reversed magnetic field**: Bx changes sign across y = Ly/2
-- **Current sheet**: Strong current Jz = ∂Bx/∂y flows in the z-direction
-- **Pressure balance**: Total pressure (thermal + magnetic) is constant
-- **Perturbation**: Small By perturbation triggers reconnection
-
-The resistivity (η) allows magnetic field lines to break and reconnect, converting magnetic energy into kinetic and thermal energy.
-
 ## Output
 
 The simulation produces:
@@ -72,15 +61,6 @@ The simulation produces:
 1. **Video file** (`magnetic_reconnection.mp4`):
    - Left panel: Current density Jz showing X-point formation
    - Right panel: Magnetic field streamlines showing reconnection topology
-
-## Numerical Method
-
-- **Spatial discretization**: Finite volume method with cell-centered values
-- **Flux calculation**: Rusanov (Local Lax-Friedrichs) scheme
-- **Time integration**: 4th-order Runge-Kutta (RK4)
-- **Boundary conditions**: Periodic in both x and y directions
-- **Divergence control**: ∇·B maintained through appropriate flux formulation
-- **Stability**: CFL condition for hyperbolic terms, diffusive limit for resistive terms
 
 ## References
 
