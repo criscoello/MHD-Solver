@@ -2,8 +2,6 @@
 
 A Python-based simulation of magnetic reconnection in a Harris current sheet using 2D resistive magnetohydrodynamics (MHD). This code solves the ideal MHD equations with resistive diffusion using a finite volume method with Rusanov flux.
 
-## Overview
-
 This simulator models the physical process of magnetic reconnection, where oppositely directed magnetic field lines break and reconnect, releasing large amounts of stored magnetic energy. The Harris sheet configuration provides a classic setup for studying this phenomenon, which is fundamental to understanding solar flares, magnetospheric substorms, and plasma dynamics in astrophysical systems.
 
 ## Features
@@ -16,26 +14,6 @@ This simulator models the physical process of magnetic reconnection, where oppos
 - **Adaptive Time Stepping**: CFL condition for both hyperbolic and diffusive constraints
 - **Video Export**: Save simulations as high-quality MP4 videos
 - **Physical Diagnostics**: Current density (Jz), magnetic field visualization, energy tracking
-
-## Physical Model
-
-The code solves the resistive MHD equations:
-
-```
-∂ρ/∂t + ∇·(ρv) = 0                           (Mass conservation)
-∂(ρv)/∂t + ∇·(ρvv + pI + BB - B²I/2) = 0     (Momentum)
-∂B/∂t - ∇×(v×B) = η∇²B                       (Induction with resistivity)
-∂E/∂t + ∇·[(E + p + B²/2)v - B(v·B)] = η|J|² (Energy with Ohmic heating)
-```
-
-Where:
-- ρ = density
-- v = velocity
-- B = magnetic field
-- p = pressure
-- E = total energy density
-- η = resistivity
-- J = current density = ∇×B
 
 ## Installation
 
@@ -62,13 +40,13 @@ Solver/
 
 ### Basic Simulation
 
-Run the simulation with default parameters:
+Run the simulation with default parameters.
 
 This will generate a video file `magnetic_reconnection.mp4` showing the evolution of the current density and magnetic field topology.
 
 ### Configuration
 
-Edit `config.py` to modify simulation parameters:
+Edit `config.py` to modify simulation parameters.
 
 ### Custom Initial Conditions
 
