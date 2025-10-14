@@ -62,7 +62,7 @@ The simulation produces:
    - Left panel: Current density Jz showing X-point formation
    - Right panel: Magnetic field streamlines showing reconnection topology
   
-##Graphical User Interface
+# Graphical User Interface
 
 Under Construction !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
