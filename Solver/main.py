@@ -94,7 +94,7 @@ writer = FFMpegWriter(fps=18,  # frames per second
                      bitrate=3000)  # Higher bitrate = better quality
 
 # Save the animation as MP4
-output_filename = "magnetic_reconnection.mp4"
+output_filename = "magnetic_reconnection1.mp4"
 #Change the name if you do not want to replace the last file
 print(f"Saving video to: {output_filename}")
 print("Please wait, this will take a few minutes...\n")

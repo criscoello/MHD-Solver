@@ -18,7 +18,7 @@ dy = Ly/Ny
 gamma = 5.0/3.0 #monoatomic
 
 #Resistivity
-ETA = 0.0001
+ETA = 0.01
 
 #Time control parameters
 CFL = 0.3
