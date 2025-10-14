@@ -61,6 +61,12 @@ The simulation produces:
 1. **Video file** (`magnetic_reconnection.mp4`):
    - Left panel: Current density Jz showing X-point formation
    - Right panel: Magnetic field streamlines showing reconnection topology
+  
+##Graphical User Interface
+
+Under Construction !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!
 
 ## References
 
