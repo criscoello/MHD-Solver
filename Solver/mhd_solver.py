@@ -329,13 +329,3 @@ def RK4(U):
     U_new = U + (dt / 6.0) * (k1 + 2*k2 + 2*k3 + k4)
     
     return U_new, dt
-    
-
-    
-    
-    
-
-
-
-
-

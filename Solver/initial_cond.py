@@ -9,10 +9,10 @@ def Harris_sheet(B0 = 1.0, pert_amp = 0.1):
     x, y, dx, dy, X, Y = init_grid()
     
     #Initialize parameters
-    a = 0.5
-    p0 = 0.1
+    a = 0.05  # Thinner current sheet for more realistic reconnection
+    p0 = 0.5  # Higher background pressure for better balance
     rho0 = 1.0
-    rho1 = 0.0
+    rho1 = 0.5 # Plasma rho1 for pressure-magnetic balance
     
     # Magnetic field: reversed along y
     Bx = B0 * np.tanh((Y - config.Ly/2) / a)
