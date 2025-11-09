@@ -6,22 +6,16 @@ from scipy.ndimage import gaussian_filter
 import tkinter as tk
 from tkinter import ttk
 import threading
-import sys
-import os
-
-# Add the Solver directory to the path
-solver_path = os.path.join(os.path.dirname(__file__), '..', 'Solver')
-sys.path.insert(0, os.path.abspath(solver_path))
-
+from initial_cond import Harris_sheet
 from mhd_solver import init_grid, RK4, conserved_to_primitives, primitives_to_conserved
-from physical_test import Jz_component
+from physical_test import Jz_component, DivB, Total_Energy, Electric_Field
 import config
 
 class MHDSimulationGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("MHD Magnetic Reconnection Simulator")
-        self.root.geometry("1300x750")
+        self.root.geometry("1400x750")
         
         # Initialize simulation
         self.x, self.y, self.dx, self.dy, self.X, self.Y = init_grid()
@@ -31,42 +25,21 @@ class MHDSimulationGUI:
         self.pert_amp = 0.1
         self.eta = 0.01
         
-        self.U = self.create_harris_sheet()
+        # Update config with current eta
+        config.ETA = self.eta
+        
+        self.U = Harris_sheet(self.B0, self.pert_amp)
         self.current_time = 0.0
         self.is_running = False
         self.is_paused = False
         
+        # Store colorbar references
+        self.cbar1 = None
+        self.cbar2 = None
+        
         # Create UI
         self.create_widgets()
-        
-    def create_harris_sheet(self):
-        """Create Harris sheet with current parameters"""
-        a = 0.5
-        p0 = 0.1
-        rho0 = 1.0
-        rho1 = 0.0
-        
-        # Magnetic field: reversed along y
-        Bx = self.B0 * np.tanh((self.Y - config.Ly/2) / a)
-        By = np.zeros_like(Bx)
-        
-        # Add small perturbation to trigger reconnection
-        By += self.pert_amp * np.sin(2 * np.pi * self.X / config.Lx) * np.exp(-(self.Y - config.Ly/2)**2 / a**2)
-        
-        # Pressure and density
-        p = p0 + 0.5 * self.B0**2 * (1 - np.tanh((self.Y - config.Ly/2) / a)**2)
-        rho = rho0 + rho1 * (1 / np.cosh((self.Y - config.Ly/2) / a))**2
-        
-        # Initial Velocities
-        vx = np.zeros_like(Bx)
-        vy = np.zeros_like(By)
-        
-        # Update config with current eta
-        config.ETA = self.eta
-        
-        U = primitives_to_conserved(rho, vx, vy, Bx, By, p)
-        return U
-        
+    
     def create_widgets(self):
         # Main container
         main_frame = ttk.Frame(self.root)
@@ -88,14 +61,14 @@ class MHDSimulationGUI:
         ttk.Label(param_frame, text="(0.1 - 2.0)").grid(row=0, column=2, sticky=tk.W)
         
         # Perturbation Amplitude
-        ttk.Label(param_frame, text="Perturbation (pert_amp):").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(param_frame, text="Perturbation:").grid(row=1, column=0, sticky=tk.W, pady=5)
         self.pert_var = tk.DoubleVar(value=self.pert_amp)
         self.pert_entry = ttk.Entry(param_frame, textvariable=self.pert_var, width=10)
         self.pert_entry.grid(row=1, column=1, pady=5, padx=5)
         ttk.Label(param_frame, text="(0.01 - 0.5)").grid(row=1, column=2, sticky=tk.W)
         
         # Resistivity (ETA)
-        ttk.Label(param_frame, text="Resistivity (η):").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(param_frame, text="Resistivity (eta):").grid(row=2, column=0, sticky=tk.W, pady=5)
         self.eta_var = tk.DoubleVar(value=self.eta)
         self.eta_entry = ttk.Entry(param_frame, textvariable=self.eta_var, width=10)
         self.eta_entry.grid(row=2, column=1, pady=5, padx=5)
@@ -110,14 +83,14 @@ class MHDSimulationGUI:
         control_frame.pack(fill=tk.X, pady=(0, 10))
         
         # Buttons
-        self.start_button = ttk.Button(control_frame, text="▶ Start", command=self.start_simulation, width=15)
+        self.start_button = ttk.Button(control_frame, text="Start", command=self.start_simulation, width=15)
         self.start_button.pack(fill=tk.X, pady=2)
         
-        self.pause_button = ttk.Button(control_frame, text="⏸ Pause", command=self.pause_simulation, 
+        self.pause_button = ttk.Button(control_frame, text="Pause", command=self.pause_simulation, 
                                        state='disabled', width=15)
         self.pause_button.pack(fill=tk.X, pady=2)
         
-        self.reset_button = ttk.Button(control_frame, text="↻ Reset", command=self.reset_simulation, width=15)
+        self.reset_button = ttk.Button(control_frame, text="Reset", command=self.reset_simulation, width=15)
         self.reset_button.pack(fill=tk.X, pady=2)
         
         # Speed control
@@ -128,7 +101,7 @@ class MHDSimulationGUI:
         self.speed_scale = ttk.Scale(speed_frame, from_=1, to=50, orient='horizontal', 
                                       variable=self.speed_var, length=180)
         self.speed_scale.pack(fill=tk.X)
-        ttk.Label(speed_frame, text="Slow ← → Fast").pack()
+        ttk.Label(speed_frame, text="Slow <- -> Fast").pack()
         
         # Info Panel
         info_frame = ttk.LabelFrame(left_panel, text="Information", padding="10")
@@ -142,8 +115,8 @@ class MHDSimulationGUI:
         
         ttk.Separator(info_frame, orient='horizontal').pack(fill=tk.X, pady=10)
         
-        self.info_text = tk.Text(info_frame, height=10, width=25, wrap=tk.WORD, 
-                                 font=('Arial', 9), state='disabled')
+        self.info_text = tk.Text(info_frame, height=15, width=28, wrap=tk.WORD, 
+                                 font=('Courier', 9), state='disabled')
         self.info_text.pack(fill=tk.BOTH, expand=True)
         self.update_info_text()
         
@@ -152,7 +125,7 @@ class MHDSimulationGUI:
         plot_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Create matplotlib figure
-        self.fig = Figure(figsize=(10, 5))
+        self.fig = Figure(figsize=(11, 5))
         self.ax1 = self.fig.add_subplot(121)
         self.ax2 = self.fig.add_subplot(122)
         
@@ -162,27 +135,47 @@ class MHDSimulationGUI:
         self.canvas = FigureCanvasTkAgg(self.fig, master=plot_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-        
+    
     def update_info_text(self):
-        """Update the information text box"""
-        info = f"""Current Parameters:
+        """Update the information text box with diagnostics"""
+        # Calculate diagnostics
+        E_total, E_kinetic, E_magnetic, E_internal = Total_Energy(self.U)
+        divB = DivB(self.U)
+        max_divB = np.max(np.abs(divB))
+        Ez_center = Electric_Field(self.U)
         
-B₀ = {self.B0:.3f}
-Perturbation = {self.pert_amp:.3f}
-η (resistivity) = {self.eta:.4f}
+        info = f"""Parameters:
+B0 = {self.B0:.3f}
+Pert = {self.pert_amp:.3f}
+eta = {self.eta:.4f}
 
-Grid: {config.Nx} × {config.Ny}
-Domain: {config.Lx} × {config.Ly}
-Max Time: {config.tmax}
+Grid Info:
+Grid: {config.Nx} x {config.Ny}
+Domain: {config.Lx} x {config.Ly}
+dx = {config.dx:.4f}
+dy = {config.dy:.4f}
+
+Diagnostics:
+E_total  = {E_total:.4e}
+E_kinetic= {E_kinetic:.4e}
+E_magnet = {E_magnetic:.4e}
+E_intern = {E_internal:.4e}
+
+max|div B| = {max_divB:.4e}
+Ez(center)= {Ez_center:.4e}
 
 About:
-This simulation models magnetic reconnection in a Harris current sheet using 2D resistive MHD equations."""
+Simulates magnetic 
+reconnection in Harris
+current sheet using 2D
+resistive MHD.
+"""
         
         self.info_text.config(state='normal')
         self.info_text.delete(1.0, tk.END)
         self.info_text.insert(1.0, info)
         self.info_text.config(state='disabled')
-        
+    
     def apply_parameters(self):
         """Apply new parameters and reset simulation"""
         try:
@@ -203,6 +196,9 @@ This simulation models magnetic reconnection in a Harris current sheet using 2D 
             self.pert_amp = new_pert
             self.eta = new_eta
             
+            # Update config with new eta
+            config.ETA = self.eta
+            
             # Reset simulation with new parameters
             self.reset_simulation()
             self.update_info_text()
@@ -211,29 +207,36 @@ This simulation models magnetic reconnection in a Harris current sheet using 2D 
             
         except ValueError as e:
             self.status_label.config(text=f"Error: {str(e)}")
-        
+    
     def update_plots(self):
         # Compute diagnostics
         Jz = Jz_component(self.U)
         rho, vx, vy, Bx, By, p = conserved_to_primitives(self.U)
         B_magnitude = np.sqrt(Bx**2 + By**2)
         
-        # Clear axes
+        # Clear axes but keep figure layout
         self.ax1.clear()
         self.ax2.clear()
         
-        # Plot Jz
+        # Plot Jz with colorbar
         Jz_smooth = gaussian_filter(Jz.T, sigma=1)
         vmax = max(np.max(np.abs(Jz_smooth)), 1e-6)
         
-        self.ax1.contourf(self.X.T, self.Y.T, Jz_smooth, levels=50, 
-                         cmap='seismic', vmin=-vmax, vmax=vmax)
-        self.ax1.set_title(f'Current Density (Jz)', fontsize=11, fontweight='bold')
+        cont = self.ax1.contourf(self.X.T, self.Y.T, Jz_smooth, levels=50, 
+                                 cmap='seismic', vmin=-vmax, vmax=vmax)
+        self.ax1.set_title('Current Density (Jz)', fontsize=11, fontweight='bold')
         self.ax1.set_xlabel('x')
         self.ax1.set_ylabel('y')
         self.ax1.set_aspect('equal')
         
-        # Plot magnetic field
+        # Update or create colorbar for Jz
+        if self.cbar1 is None:
+            self.cbar1 = self.fig.colorbar(cont, ax=self.ax1, fraction=0.046, pad=0.04)
+            self.cbar1.set_label('Jz', rotation=270, labelpad=15)
+        else:
+            self.cbar1.update_normal(cont)
+        
+        # Plot magnetic field with colorbar
         skip = 4
         X_sub = self.X[::skip, ::skip]
         Y_sub = self.Y[::skip, ::skip]
@@ -241,17 +244,22 @@ This simulation models magnetic reconnection in a Harris current sheet using 2D 
         By_sub = By[::skip, ::skip]
         B_mag_sub = B_magnitude[::skip, ::skip]
         
-        self.ax2.quiver(X_sub.T, Y_sub.T, Bx_sub.T, By_sub.T, B_mag_sub.T,
-                       cmap='plasma', scale=20, width=0.003, pivot='mid')
-        self.ax2.set_title(f'Magnetic Field', fontsize=11, fontweight='bold')
+        quiv = self.ax2.quiver(X_sub.T, Y_sub.T, Bx_sub.T, By_sub.T, B_mag_sub.T,
+                               cmap='plasma', scale=20, width=0.003, pivot='mid')
+        self.ax2.set_title('Magnetic Field', fontsize=11, fontweight='bold')
         self.ax2.set_xlabel('x')
         self.ax2.set_ylabel('y')
         self.ax2.set_aspect('equal')
         self.ax2.set_xlim(0, config.Lx)
         self.ax2.set_ylim(0, config.Ly)
         
-        self.fig.tight_layout()
-        
+        # Update or create colorbar for magnetic field
+        if self.cbar2 is None:
+            self.cbar2 = self.fig.colorbar(quiv, ax=self.ax2, fraction=0.046, pad=0.04)
+            self.cbar2.set_label('|B|', rotation=270, labelpad=15)
+        else:
+            self.cbar2.update_normal(quiv)
+    
     def simulation_loop(self):
         while self.is_running:
             if not self.is_paused:
@@ -276,7 +284,8 @@ This simulation models magnetic reconnection in a Harris current sheet using 2D 
         self.update_plots()
         self.canvas.draw()
         self.time_label.config(text=f"Time: {self.current_time:.4f}")
-        
+        self.update_info_text()
+    
     def start_simulation(self):
         if not self.is_running:
             self.is_running = True
@@ -296,17 +305,17 @@ This simulation models magnetic reconnection in a Harris current sheet using 2D 
     def pause_simulation(self):
         self.is_paused = not self.is_paused
         if self.is_paused:
-            self.pause_button.config(text="▶ Resume")
+            self.pause_button.config(text="Resume")
             self.status_label.config(text="Status: Paused")
         else:
-            self.pause_button.config(text="⏸ Pause")
+            self.pause_button.config(text="Pause")
             self.status_label.config(text="Status: Running")
     
     def stop_simulation(self):
         self.is_running = False
         self.is_paused = False
         self.start_button.config(state='normal')
-        self.pause_button.config(state='disabled', text="⏸ Pause")
+        self.pause_button.config(state='disabled', text="Pause")
         self.apply_button.config(state='normal')
         self.B0_entry.config(state='normal')
         self.pert_entry.config(state='normal')
@@ -316,11 +325,20 @@ This simulation models magnetic reconnection in a Harris current sheet using 2D 
     def reset_simulation(self):
         self.is_running = False
         self.is_paused = False
-        self.U = self.create_harris_sheet()
+        
+        # Recreate the Harris sheet with current parameters
+        self.U = Harris_sheet(self.B0, self.pert_amp)
         self.current_time = 0.0
         
+        # Clear the figure completely and recreate axes
+        self.fig.clear()
+        self.ax1 = self.fig.add_subplot(121)
+        self.ax2 = self.fig.add_subplot(122)
+        self.cbar1 = None
+        self.cbar2 = None
+        
         self.start_button.config(state='normal')
-        self.pause_button.config(state='disabled', text="⏸ Pause")
+        self.pause_button.config(state='disabled', text="Pause")
         self.apply_button.config(state='normal')
         self.B0_entry.config(state='normal')
         self.pert_entry.config(state='normal')
