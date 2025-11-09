@@ -64,9 +64,7 @@ The simulation produces:
   
 # Graphical User Interface
 
-Under Construction !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!
+The GUI provides an interactive, real-time visualization of magnetic reconnection in the Harris sheet configuration. Users can adjust physical parameters, control simulation speed, and observe the reconnection dynamics as they evolve.
 
 ## References
 
