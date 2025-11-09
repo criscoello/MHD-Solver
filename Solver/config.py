@@ -18,13 +18,13 @@ dy = Ly/Ny
 gamma = 5.0/3.0 #monoatomic
 
 #Resistivity
-ETA = 0.002
+ETA = 0.01
 
 #Time control parameters
-CFL = 0.1 # Reduced from 0.3 for better stability
+CFL = 0.2 # Reduced from 0.3 for better stability
 output_interval = 70
 tmax = 1.0
 
 # For Safety - tighter tolerances
-min_density = 1e-8    # Tighter from 1e-4
-min_pressure = 1e-10   # Tighter from 1e-6
+min_density = 1e-6    # Tighter from 1e-4
+min_pressure = 1e-8   # Tighter from 1e-6

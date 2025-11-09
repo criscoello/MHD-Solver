@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 # PARAMETERS
 # -----------------------------
 B0 = 1.0       # main magnetic field
-a = 0.05        # thickness
+a = 0.1        # thickness
 nx = 200
 ny = 200
 Lx = 4
