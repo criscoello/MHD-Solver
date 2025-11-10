@@ -218,12 +218,12 @@ resistive MHD.
         self.ax1.clear()
         self.ax2.clear()
         
-        # Plot Jz with colorbar
+        # Plot 1: Current Density Jz
         Jz_smooth = gaussian_filter(Jz.T, sigma=1)
         vmax = max(np.max(np.abs(Jz_smooth)), 1e-6)
         
         cont = self.ax1.contourf(self.X.T, self.Y.T, Jz_smooth, levels=50, 
-                                 cmap='seismic', vmin=-vmax, vmax=vmax)
+                                cmap='seismic', vmin=-vmax, vmax=vmax)
         self.ax1.set_title('Current Density (Jz)', fontsize=11, fontweight='bold')
         self.ax1.set_xlabel('x')
         self.ax1.set_ylabel('y')
@@ -236,29 +236,48 @@ resistive MHD.
         else:
             self.cbar1.update_normal(cont)
         
-        # Plot magnetic field with colorbar
+        # Plot 2: Magnetic Field Lines - CORRECTED VERSION
+        # First, downsample the data
         skip = 4
         X_sub = self.X[::skip, ::skip]
         Y_sub = self.Y[::skip, ::skip]
-        Bx_sub = Bx[::skip, ::skip]
-        By_sub = By[::skip, ::skip]
+        Bx_sub = Bx[::skip, ::skip]  # Define Bx_sub
+        By_sub = By[::skip, ::skip]  # Define By_sub
         B_mag_sub = B_magnitude[::skip, ::skip]
         
-        quiv = self.ax2.quiver(X_sub.T, Y_sub.T, Bx_sub.T, By_sub.T, B_mag_sub.T,
-                               cmap='plasma', scale=20, width=0.003, pivot='mid')
-        self.ax2.set_title('Magnetic Field', fontsize=11, fontweight='bold')
+        # Plot magnetic field magnitude as background
+        im = self.ax2.contourf(self.X.T, self.Y.T, B_magnitude.T, levels=50, cmap='plasma')
+        self.ax2.set_title('Magnetic Field Lines & Magnitude', fontsize=11, fontweight='bold')
         self.ax2.set_xlabel('x')
         self.ax2.set_ylabel('y')
         self.ax2.set_aspect('equal')
-        self.ax2.set_xlim(0, config.Lx)
-        self.ax2.set_ylim(0, config.Ly)
+        
+        # Now use the defined Bx_sub and By_sub for streamplot
+        try:
+            # Calculate normalized field components
+            B_norm = np.sqrt(Bx_sub**2 + By_sub**2 + 1e-10)  # Now Bx_sub and By_sub are defined
+            Bx_norm = Bx_sub / B_norm
+            By_norm = By_sub / B_norm
+            
+            # Create streamplot (field lines)
+            self.ax2.streamplot(X_sub.T, Y_sub.T, Bx_norm.T, By_norm.T, 
+                            color='white', linewidth=0.7, density=2, arrowsize=0.8)
+            
+        except Exception as e:
+            print(f"Streamplot failed: {e}")
+            # Fallback to simple quiver plot
+            self.ax2.quiver(X_sub.T, Y_sub.T, Bx_sub.T, By_sub.T, B_mag_sub.T,
+                        cmap='plasma', scale=20, width=0.003, pivot='mid')
         
         # Update or create colorbar for magnetic field
         if self.cbar2 is None:
-            self.cbar2 = self.fig.colorbar(quiv, ax=self.ax2, fraction=0.046, pad=0.04)
+            self.cbar2 = self.fig.colorbar(im, ax=self.ax2, fraction=0.046, pad=0.04)
             self.cbar2.set_label('|B|', rotation=270, labelpad=15)
         else:
-            self.cbar2.update_normal(quiv)
+            self.cbar2.update_normal(im)
+        
+        self.ax2.set_xlim(0, config.Lx)
+        self.ax2.set_ylim(0, config.Ly)
     
     def simulation_loop(self):
         while self.is_running:
